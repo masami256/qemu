@@ -82,3 +82,36 @@
 ##
 { 'command': 'trace-event-set-state',
   'data': {'name': 'str', 'enable': 'bool', '*ignore-unavailable': 'bool' } }
+
+##
+# @sbi-fuzz-trace-start:
+#
+# Start a fuzzing trace.
+#
+# @filename: Name of the file to store the trace.
+#
+# Since: 10.0
+#
+# .. qmp-example::
+#
+#     -> { "execute": "sbi-fuzz-trace-start",
+#          "arguments": { "filename": "trace.log" } }
+#     <- { "return": {} } 
+##
+{ 'command': 'sbi-fuzz-trace-start', 
+  'data': { 'filename': 'str' }}
+
+##
+# @sbi-fuzz-trace-stop:
+#
+# Stop a fuzzing trace.
+#
+# Since: 10.0
+#
+# .. qmp-example::
+#
+#     -> { "execute": "sbi-fuzz-trace-stop" }
+#     <- { "return": {} } 
+##
+{ 'command': 'sbi-fuzz-trace-stop'} 
+  

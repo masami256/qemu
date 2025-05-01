@@ -41,6 +41,8 @@
 #include "tb-context.h"
 #include "internal-common.h"
 #include "internal-target.h"
+#include "trace/sbi_fuzz_trace.h"
+
 
 /* -icount align implementation. */
 
@@ -603,6 +605,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
 
         cpu_exec_enter(cpu);
         /* execute the generated code */
+        sbi_fuzz_record_tb_exec((uint64_t) pc);
         trace_exec_tb(tb, pc);
         cpu_tb_exec(cpu, tb, &tb_exit);
         cpu_exec_exit(cpu);
@@ -904,6 +907,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
                                     vaddr pc, TranslationBlock **last_tb,
                                     int *tb_exit)
 {
+    sbi_fuzz_record_tb_exec((uint64_t) pc);
     trace_exec_tb(tb, pc);
     tb = cpu_tb_exec(cpu, tb, tb_exit);
     if (*tb_exit != TB_EXIT_REQUESTED) {

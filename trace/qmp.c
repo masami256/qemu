@@ -11,7 +11,8 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-trace.h"
 #include "control.h"
-
+#include "qemu/thread.h"
+#include "trace/sbi_fuzz_trace.h"
 
 static bool check_events(bool ignore_unavailable, bool is_pattern,
                          const char *name, Error **errp)
@@ -105,4 +106,62 @@ void qmp_trace_event_set_state(const char *name, bool enable,
         }
         trace_event_set_state_dynamic(ev, enable);
     }
+}
+
+static FILE *sbi_fuzz_tb_trace_fp = NULL;
+static QemuMutex sbi_fuzz_tb_trace_lock;
+
+void qmp_sbi_fuzz_trace_start(const char *filename, Error **errp)
+{
+    qemu_mutex_lock(&sbi_fuzz_tb_trace_lock);
+
+    if (sbi_fuzz_tb_trace_fp) {
+        error_setg(errp, "TB trace already running");
+        qemu_mutex_unlock(&sbi_fuzz_tb_trace_lock);
+        return;
+    }
+
+    sbi_fuzz_tb_trace_fp = fopen(filename, "w");
+    if (!sbi_fuzz_tb_trace_fp) {
+        error_setg(errp, "Failed to open trace file: %s", filename);
+        qemu_mutex_unlock(&sbi_fuzz_tb_trace_lock);
+        return;
+    }
+
+    qemu_mutex_unlock(&sbi_fuzz_tb_trace_lock);
+}
+
+void qmp_sbi_fuzz_trace_stop(Error **errp)
+{
+    qemu_mutex_lock(&sbi_fuzz_tb_trace_lock);
+
+    if (!sbi_fuzz_tb_trace_fp) {
+        error_setg(errp, "TB trace is not active");
+        qemu_mutex_unlock(&sbi_fuzz_tb_trace_lock);
+        return;
+    }
+
+    fclose(sbi_fuzz_tb_trace_fp);
+    sbi_fuzz_tb_trace_fp = NULL;
+
+    qemu_mutex_unlock(&sbi_fuzz_tb_trace_lock);
+}
+
+static void __attribute__((__constructor__)) sbi_fuzz_init(void)
+{
+    qemu_mutex_init(&sbi_fuzz_tb_trace_lock);
+}
+
+
+void sbi_fuzz_record_tb_exec(uint64_t pc)
+{
+    qemu_mutex_lock(&sbi_fuzz_tb_trace_lock);
+    
+    if (!sbi_fuzz_tb_trace_fp) {
+        qemu_mutex_unlock(&sbi_fuzz_tb_trace_lock);
+        return;
+    }
+
+    fprintf(sbi_fuzz_tb_trace_fp, "0x%" PRIx64"\n", pc);
+    qemu_mutex_unlock(&sbi_fuzz_tb_trace_lock);
 }
